@@ -27,9 +27,34 @@ export default function Profile() {
   const displayName = userProfile?.displayName || user?.displayName || 'Learner';
   const email = userProfile?.email || user?.email || '';
   const photoURL = userProfile?.photoURL || user?.photoURL;
-  const joinDate = userProfile?.createdAt 
-    ? new Date(userProfile.createdAt.seconds * 1000).toLocaleDateString()
-    : 'Unknown';
+  
+  // Safely parse Firebase Timestamp to Date
+  const getJoinDate = () => {
+    if (!userProfile?.createdAt) return 'Unknown';
+    try {
+      // Handle Firebase Timestamp objects with .toDate() method
+      if (typeof userProfile.createdAt.toDate === 'function') {
+        return userProfile.createdAt.toDate().toLocaleDateString('en-US', { 
+          year: 'numeric', month: 'long', day: 'numeric' 
+        });
+      }
+      // Fallback for objects with .seconds property
+      if (userProfile.createdAt.seconds) {
+        return new Date(userProfile.createdAt.seconds * 1000).toLocaleDateString('en-US', { 
+          year: 'numeric', month: 'long', day: 'numeric' 
+        });
+      }
+      // Fallback for Date objects or ISO strings
+      return new Date(userProfile.createdAt).toLocaleDateString('en-US', { 
+        year: 'numeric', month: 'long', day: 'numeric' 
+      });
+    } catch (err) {
+      console.error('Error parsing join date:', err);
+      return 'Unknown';
+    }
+  };
+  
+  const joinDate = getJoinDate();
 
   const xpInfo = getLevelInfo(progress?.xp || 0);
 

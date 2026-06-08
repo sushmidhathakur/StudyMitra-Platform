@@ -52,7 +52,7 @@ Keep answers concise, encouraging, and tailored to this topic.`;
           }
         };
 
-        const modelName = 'gemini-2.0-flash';
+        const modelName = 'gemini-1.5-flash';
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
         console.log('📤 Sending AI Coach request:', { 

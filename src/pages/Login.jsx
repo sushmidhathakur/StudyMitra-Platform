@@ -1,19 +1,47 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { auth } from '../firebase';
+import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
 export default function Login() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'reset'
+  const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'reset' | 'setPassword'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetCode, setResetCode] = useState(null);
+  const [resetEmail, setResetEmail] = useState(null);
+
+  // Check if we're coming from a password reset email
+  useEffect(() => {
+    const code = searchParams.get('oobCode');
+    if (code) {
+      setLoading(true);
+      verifyPasswordResetCode(auth, code)
+        .then(emailAddress => {
+          setResetCode(code);
+          setResetEmail(emailAddress);
+          setEmail(emailAddress);
+          setMode('setPassword');
+          toast.success('Password reset link verified!');
+        })
+        .catch(error => {
+          toast.error('This password reset link is invalid or has expired.');
+          setMode('reset');
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   async function handleGoogle() {
     setLoading(true);
@@ -26,14 +54,44 @@ export default function Login() {
     } finally { setLoading(false); }
   }
 
+  async function handleSetNewPassword(e) {
+    e.preventDefault();
+    
+    if (!password || password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await confirmPasswordReset(auth, resetCode, password);
+      toast.success('Password reset successful! You can now sign in.');
+      setPassword('');
+      setConfirmPassword('');
+      setResetCode(null);
+      setResetEmail(null);
+      setMode('login');
+    } catch (error) {
+      toast.error('Failed to reset password: ' + (error.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleEmailAuth(e) {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === 'reset') {
         await resetPassword(email);
-        toast.success('Password reset email sent!');
+        toast.success('Password reset email sent! Check your inbox.');
         setMode('login');
+        setEmail('');
         return;
       }
       if (mode === 'signup') {
@@ -80,15 +138,17 @@ export default function Login() {
             {mode === 'login' && 'Welcome Back 👋'}
             {mode === 'signup' && 'Join StudyMitra 🎓'}
             {mode === 'reset' && 'Reset Password 🔑'}
+            {mode === 'setPassword' && 'Set New Password 🔐'}
           </h1>
           <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.875rem', marginBottom: 28 }}>
             {mode === 'login' && 'Sign in to continue your learning journey'}
             {mode === 'signup' && 'Start your personal learning journey today'}
             {mode === 'reset' && "We'll send you a reset link"}
+            {mode === 'setPassword' && 'Enter your new password'}
           </p>
 
           {/* Google Button */}
-          {mode !== 'reset' && (
+          {mode !== 'reset' && mode !== 'setPassword' && (
             <>
               <button
                 onClick={handleGoogle}
@@ -124,7 +184,7 @@ export default function Login() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleEmailAuth}>
+          <form onSubmit={mode === 'setPassword' ? handleSetNewPassword : handleEmailAuth}>
             {mode === 'signup' && (
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Full Name</label>
@@ -140,20 +200,30 @@ export default function Login() {
               </div>
             )}
 
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Email</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
-                <input
-                  type="email" className="input-glass" required
-                  style={{ paddingLeft: 42 }}
-                  placeholder="you@example.com"
-                  value={email} onChange={e => setEmail(e.target.value)}
-                />
+            {mode !== 'setPassword' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Email</label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+                  <input
+                    type="email" className="input-glass" required
+                    style={{ paddingLeft: 42 }}
+                    placeholder="you@example.com"
+                    value={email} onChange={e => setEmail(e.target.value)}
+                    disabled={mode === 'setPassword'}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            {mode !== 'reset' && (
+            {mode === 'setPassword' && (
+              <div style={{ marginBottom: 14, padding: 12, background: 'rgba(34,197,94,0.1)', borderRadius: 8, border: '1px solid rgba(34,197,94,0.3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CheckCircle2 size={18} color="#22c55e" />
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Reset link verified for <strong>{resetEmail}</strong></div>
+              </div>
+            )}
+
+            {mode !== 'reset' && mode !== 'setPassword' && (
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Password</label>
                 <div style={{ position: 'relative' }}>
@@ -172,12 +242,50 @@ export default function Login() {
               </div>
             )}
 
+            {mode === 'setPassword' && (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 6 }}>New Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+                    <input
+                      type={showPass ? 'text' : 'password'} className="input-glass" required
+                      style={{ paddingLeft: 42, paddingRight: 42 }}
+                      placeholder="New password (min 6 characters)"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                    />
+                    <button type="button" onClick={() => setShowPass(!showPass)}
+                      style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#475569' }}>
+                      {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Confirm Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+                    <input
+                      type={showConfirmPass ? 'text' : 'password'} className="input-glass" required
+                      style={{ paddingLeft: 42, paddingRight: 42 }}
+                      placeholder="Confirm new password"
+                      value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                    />
+                    <button type="button" onClick={() => setShowConfirmPass(!showConfirmPass)}
+                      style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#475569' }}>
+                      {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
             <button type="submit" className="btn-primary" disabled={loading}
               style={{ width: '100%', justifyContent: 'center', marginBottom: 16 }}>
               {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
               {mode === 'login' && 'Sign In'}
               {mode === 'signup' && 'Create Account'}
               {mode === 'reset' && 'Send Reset Email'}
+              {mode === 'setPassword' && 'Set New Password'}
             </button>
           </form>
 
@@ -193,7 +301,7 @@ export default function Login() {
             {mode === 'signup' && (
               <button onClick={() => setMode('login')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4f8ef7', fontFamily: 'Inter, sans-serif' }}>Already have an account? Sign in</button>
             )}
-            {mode === 'reset' && (
+            {(mode === 'reset' || mode === 'setPassword') && (
               <button onClick={() => setMode('login')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4f8ef7', fontFamily: 'Inter, sans-serif' }}>Back to sign in</button>
             )}
           </div>

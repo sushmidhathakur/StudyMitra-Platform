@@ -123,14 +123,22 @@ export function RoadmapProvider({ children }) {
 
   // ── Complete a day ──
   async function completeDay(dayIndex, summary, minutesSpent = 90) {
-    if (!user || !progress || !roadmap) return;
+    if (!user || !progress || !roadmap) {
+      throw new Error('User, progress, or roadmap not found');
+    }
 
     const today = todayStr();
     const isCurrentDay = progress.currentDay === dayIndex;
-    if (!isCurrentDay) return;
+    
+    // Return early with more explicit error handling
+    if (!isCurrentDay) {
+      throw new Error(`Cannot complete Day ${dayIndex}. Current day is ${progress.currentDay}. Days must be completed sequentially.`);
+    }
 
     const alreadyCompleted = progress.completedDays.includes(dayIndex);
-    if (alreadyCompleted) return;
+    if (alreadyCompleted) {
+      throw new Error(`Day ${dayIndex} has already been completed`);
+    }
 
     // Streak calculation
     const last = progress.lastCompletedDate;
@@ -144,7 +152,7 @@ export function RoadmapProvider({ children }) {
 
     const newLongest = Math.max(progress.longestStreak || 0, newStreak);
     const newCompletedDays = [...progress.completedDays, dayIndex];
-    const newCurrentDay = dayIndex + 1;
+    const newCurrentDay = dayIndex + 1; // Increment to unlock next day
     const newTotalMinutes = (progress.totalMinutes || 0) + minutesSpent;
 
     // XP
@@ -154,6 +162,21 @@ export function RoadmapProvider({ children }) {
 
     const newHistory = { ...(progress.history || {}), [today]: true };
 
+    // **OPTIMISTIC UPDATE**: Update local state immediately before Firestore
+    const optimisticProgress = {
+      ...progress,
+      completedDays: newCompletedDays,
+      currentDay: newCurrentDay, // This immediately unlocks the next day
+      lastCompletedDate: today,
+      currentStreak: newStreak,
+      longestStreak: newLongest,
+      totalMinutes: newTotalMinutes,
+      xp: newXP,
+      history: newHistory,
+    };
+    setProgress(optimisticProgress);
+
+    // Now persist to Firestore
     const updates = {
       completedDays: newCompletedDays,
       currentDay: newCurrentDay,
@@ -165,26 +188,32 @@ export function RoadmapProvider({ children }) {
       history: newHistory,
     };
 
-    await updateDoc(doc(db, 'progress', user.uid), updates);
+    try {
+      await updateDoc(doc(db, 'progress', user.uid), updates);
 
-    // Save to journal
-    await setDoc(doc(db, 'journals', user.uid, 'entries', today), {
-      date: today,
-      dayIndex,
-      topic: roadmap.parsedDays[dayIndex - 1]?.topic || '',
-      summary,
-      minutesSpent,
-      xpEarned: xpGain,
-      createdAt: serverTimestamp(),
-    }, { merge: true });
+      // Save to journal
+      await setDoc(doc(db, 'journals', user.uid, 'entries', today), {
+        date: today,
+        dayIndex,
+        topic: roadmap.parsedDays[dayIndex - 1]?.topic || '',
+        summary,
+        minutesSpent,
+        xpEarned: xpGain,
+        createdAt: serverTimestamp(),
+      }, { merge: true });
 
-    // Update user XP
-    await updateDoc(doc(db, 'users', user.uid), { xp: newXP });
+      // Update user XP
+      await updateDoc(doc(db, 'users', user.uid), { xp: newXP });
 
-    // Check achievements
-    await checkAchievements(newCompletedDays, newStreak, newTotalMinutes);
+      // Check achievements
+      await checkAchievements(newCompletedDays, newStreak, newTotalMinutes);
 
-    return { xpGain, newStreak };
+      return { xpGain, newStreak, newCurrentDay };
+    } catch (error) {
+      // Revert optimistic update on error
+      setProgress(progress);
+      throw new Error(`Failed to complete day: ${error.message}`);
+    }
   }
 
   // ── Achievements ──

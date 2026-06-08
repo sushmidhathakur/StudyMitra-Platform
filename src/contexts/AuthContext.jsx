@@ -7,6 +7,7 @@ import {
   signOut,
   updateProfile,
   sendPasswordResetEmail,
+  confirmPasswordReset,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
@@ -108,7 +109,31 @@ export function AuthProvider({ children }) {
   }
 
   async function resetPassword(email) {
-    await sendPasswordResetEmail(auth, email);
+    // Determine the correct domain based on environment
+    let actionCodeSettings;
+    
+    // In production (Vercel), use the production domain
+    // Otherwise use localhost for development
+    const currentHost = window.location.hostname;
+    const isProduction = currentHost.includes('vercel.app') || currentHost.includes('studymitra');
+    
+    // Build the absolute URL for the password reset handler
+    const baseUrl = isProduction 
+      ? `https://${currentHost}`
+      : `http://${currentHost}:${window.location.port || 5173}`;
+    
+    actionCodeSettings = {
+      url: `${baseUrl}/login?resetPassword=true`,
+      handleCodeInApp: true, // Handle the code in the app instead of sending user to email link
+    };
+    
+    try {
+      // Send password reset email with action code settings
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    } catch (error) {
+      console.error('Password reset error:', error);
+      throw error;
+    }
   }
 
   async function refreshProfile() {
