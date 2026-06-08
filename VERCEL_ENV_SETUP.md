@@ -45,12 +45,12 @@ You should see a page like this:
 
 ```javascript
 const firebaseConfig = {
-  apiKey: "AIzaSyC_XXXX...",
-  authDomain: "studymitra-123.firebaseapp.com",
-  projectId: "studymitra-123",
-  storageBucket: "studymitra-123.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abc123def456"
+  apiKey: "AXXXX...",
+  authDomain: ".firebaseapp.com",
+  projectId: "23",
+  storageBucket: "s.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:abc123def456"
 };
 ```
 
@@ -85,7 +85,7 @@ Go back to Vercel → Settings → Environment Variables
 You should see:
 ```
 Name: VITE_GEMINI_API_KEY
-Value: AIzaSyDpWRQh4ZVWPdx8etX2e7...
+Value: AIzxxxxxxxxxxxxxxxxxx7...
 ```
 
 #### Add Firebase Configuration:
@@ -99,17 +99,17 @@ Repeat for each Firebase variable:
 
 **2. Auth Domain**
 - Name: `VITE_FIREBASE_AUTH_DOMAIN`
-- Value: `studymitra-123.firebaseapp.com`
+- Value: `-123.firebaseapp.com`
 - Click **Add**
 
 **3. Project ID**
 - Name: `VITE_FIREBASE_PROJECT_ID`
-- Value: `studymitra-123`
+- Value: `-123`
 - Click **Add**
 
 **4. Storage Bucket**
 - Name: `VITE_FIREBASE_STORAGE_BUCKET`
-- Value: `studymitra-123.appspot.com`
+- Value: `.appspot.com`
 - Click **Add**
 
 **5. Messaging Sender ID**
@@ -119,7 +119,7 @@ Repeat for each Firebase variable:
 
 **6. App ID**
 - Name: `VITE_FIREBASE_APP_ID`
-- Value: `1:123456789012:web:abc123def456`
+- Value: `:web:abc123def456`
 - Click **Add**
 
 ---
@@ -176,13 +176,13 @@ All 7 variables should be listed with a checkmark.
 
 | Vercel Variable Name | Where It Comes From | Example Value |
 |---|---|---|
-| `VITE_GEMINI_API_KEY` | Google AI Studio | `AIzaSyDpWRQh4ZVWPdx8etX2e7...` |
+| `VITE_GEMINI_API_KEY` | Google AI Studio | `AIzcxxxxxxxxxxxxx........` |
 | `VITE_FIREBASE_API_KEY` | Firebase Config | `AIzaSyC_XXXX...` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Config | `studymitra-123.firebaseapp.com` |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase Config | `studymitra-123` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Config | `studymitra-123.appspot.com` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Config | `123456789012` |
-| `VITE_FIREBASE_APP_ID` | Firebase Config | `1:123456789012:web:abc123def456` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Config | `s.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase Config | -123` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Config | `stu-123.appspot.com` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Config | `1232` |
+| `VITE_FIREBASE_APP_ID` | Firebase Config | `1def456` |
 
 ---
 
